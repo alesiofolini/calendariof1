@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario F1</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.88em' x='0.06em' font-size='88'%3E%F0%9F%8F%8E%EF%B8%8F%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #14141c;
+            --surface2: #1c1c28;
+            --border: #2a2a3a;
+            --text: #f0f0f5;
+            --muted: #8888a0;
+            --accent: #e10600;
+            --accent-dim: rgba(225, 6, 0, 0.15);
+            --gold: #ffd700;
+            --silver: #c0c0c0;
+            --bronze: #cd7f32;
+            --driver-hl: rgba(255, 215, 0, 0.22);
+            --team-hl: rgba(0, 210, 190, 0.18);
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a0000 0%, var(--bg) 60%);
+            border-bottom: 2px solid var(--accent);
+            padding: 1.5rem 1rem 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .header h1 span { color: var(--accent); }
+
+        .season-label {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 0.2rem;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            align-items: center;
+        }
+
+        .filters label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        select {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            min-width: 200px;
+            cursor: pointer;
+        }
+
+        select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+        .btn-clear {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            align-self: flex-end;
+            transition: all 0.15s;
+        }
+
+        .btn-clear:hover { border-color: var(--accent); color: var(--text); }
+
+        .highlight-badge {
+            display: none;
+            margin-top: 0.75rem;
+            padding: 0.4rem 0.75rem;
+            background: var(--accent-dim);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        .highlight-badge.visible { display: block; }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 3rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--muted);
+        }
+
+        .loading .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .next-race-hero {
+            background: linear-gradient(135deg, var(--surface) 0%, #1a0a0a 100%);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .next-race-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(225,6,0,0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .hero-name {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin: 0.25rem 0;
+        }
+
+        .hero-meta {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .countdown {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .countdown-unit {
+            background: var(--surface2);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            text-align: center;
+            min-width: 64px;
+        }
+
+        .countdown-unit .num {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            color: var(--text);
+        }
+
+        .countdown-unit .lbl {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .race-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .race-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: border-color 0.15s;
+        }
+
+        .race-card:hover { border-color: #3a3a50; }
+
+        .race-card.is-next { border-color: var(--accent); }
+
+        .race-card.is-past { opacity: 0.92; }
+
+        .race-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .race-round {
+            background: var(--surface2);
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1rem;
+            flex-shrink: 0;
+            color: var(--muted);
+        }
+
+        .race-card.is-next .race-round {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .race-info { flex: 1; min-width: 0; }
+
+        .race-name {
+            font-weight: 700;
+            font-size: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .race-circuit {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .race-right {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .race-date {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .race-status {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-top: 0.15rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .status-done { background: #1a2a1a; color: #4ade80; }
+        .status-upcoming { background: #1a1a2a; color: #818cf8; }
+        .status-qualy { background: #2a1a00; color: #fbbf24; }
+        .status-live { background: var(--accent-dim); color: var(--accent); }
+
+        .race-body {
+            display: none;
+            border-top: 1px solid var(--border);
+            padding: 1rem 1.25rem;
+        }
+
+        .race-card.expanded .race-body { display: block; }
+
+        .race-summary {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .podium {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .podium-item {
+            flex: 1;
+            min-width: 120px;
+            background: var(--surface2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+            border-top: 3px solid var(--muted);
+        }
+
+        .podium-item.p1 { border-top-color: var(--gold); }
+        .podium-item.p2 { border-top-color: var(--silver); }
+        .podium-item.p3 { border-top-color: var(--bronze); }
+
+        .podium-pos {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .podium-driver {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin: 0.2rem 0;
+        }
+
+        .podium-team {
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.5rem 0.6rem;
+            color: var(--muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.45rem 0.6rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        tr.hl-driver {
+            background: var(--driver-hl);
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+
+        tr.hl-team {
+            background: var(--team-hl);
+            box-shadow: inset 3px 0 0 #00d2be;
+        }
+
+        tr.hl-both {
+            background: linear-gradient(90deg, var(--driver-hl), var(--team-hl));
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+
+        .podium-item.hl-driver { outline: 2px solid var(--gold); }
+        .podium-item.hl-team { outline: 2px solid #00d2be; }
+
+        .pos-badge {
+            display: inline-block;
+            width: 26px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .driver-code {
+            font-weight: 700;
+            margin-right: 0.4rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .inline-countdown {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        .inline-countdown strong { color: var(--text); }
+
+        .chevron {
+            color: var(--muted);
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .race-card.expanded .chevron { transform: rotate(180deg); }
+
+        .error-msg {
+            color: #f87171;
+            font-size: 0.85rem;
+            padding: 0.5rem 0;
+        }
+
+        .standings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .standings-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .standings-panel h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .standings-panel table { font-size: 0.82rem; }
+        .standings-panel th, .standings-panel td { padding: 0.4rem 0.75rem; }
+
+        .pts-cell {
+            font-weight: 700;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr.pos-1 .pts-cell { color: var(--gold); }
+
+        @media (max-width: 768px) {
+            .standings-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .race-header { padding: 0.75rem 1rem; gap: 0.75rem; }
+            .race-round { width: 36px; height: 36px; font-size: 0.85rem; }
+            .filters { flex-direction: column; align-items: stretch; }
+            select { min-width: unset; width: 100%; }
+            .btn-clear { align-self: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <h1>Calendario <span>F1</span></h1>
+        <p class="season-label" id="seasonLabel">Cargando temporada...</p>
+        <div class="filters">
+            <div class="filter-group">
+                <label for="driverSelect">Resaltar piloto</label>
+                <select id="driverSelect">
+                    <option value="">— Todos —</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="teamSelect">Resaltar equipo</label>
+                <select id="teamSelect">
+                    <option value="">— Todos —</option>
+                </select>
+            </div>
+            <button class="btn-clear" id="clearBtn" type="button">Limpiar</button>
+        </div>
+        <div class="highlight-badge" id="highlightBadge"></div>
+    </div>
+</header>
+
+<main>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Cargando calendario...</p>
+    </div>
+    <div id="content" style="display:none"></div>
+</main>
+
+<script>
+const API = 'https://api.jolpi.ca/ergast/f1';
+const cache = {};
+
+const state = {
+    season: null,
+    races: [],
+    drivers: [],
+    constructors: [],
+    highlightDriver: '',
+    highlightTeam: '',
+    expandedRounds: new Set(),
+    raceData: {},
+    driverStandings: [],
+    constructorStandings: [],
+    standingsRound: null,
+};
+
+async function fetchAPI(path) {
+    if (cache[path]) return cache[path];
+    const res = await fetch(`${API}${path}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    cache[path] = data;
+    return data;
+}
+
+function toUTCDate(dateStr, timeStr) {
+    if (!dateStr) return new Date(NaN);
+    const time = (timeStr || '14:00:00').replace(/Z$/i, '');
+    return new Date(`${dateStr}T${time}Z`);
+}
+
+function toUTCISO(dateStr, timeStr) {
+    if (!dateStr) return '';
+    const time = (timeStr || '14:00:00').replace(/Z$/i, '');
+    return `${dateStr}T${time}Z`;
+}
+
+function raceDateTime(race) {
+    return toUTCDate(race.date, race.time);
+}
+
+function qualyDateTime(race) {
+    if (!race.Qualifying) return null;
+    return toUTCDate(race.Qualifying.date, race.Qualifying.time);
+}
+
+function getRaceStatus(race) {
+    const now = new Date();
+    const raceDt = raceDateTime(race);
+    const qualyDt = qualyDateTime(race);
+
+    if (raceDt <= now) return 'completed';
+    if (qualyDt && qualyDt <= now) return 'qualifying_done';
+    return 'upcoming';
+}
+
+function formatDate(dt) {
+    if (!dt || isNaN(dt.getTime())) return '—';
+    return dt.toLocaleDateString('es-AR', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    });
+}
+
+function formatCountdown(target) {
+    if (!target || isNaN(target.getTime())) return null;
+    const diff = target - Date.now();
+    if (diff <= 0) return null;
+
+    const s = Math.floor(diff / 1000);
+    const days = Math.floor(s / 86400);
+    const hours = Math.floor((s % 86400) / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+
+    return { days, hours, mins, secs, total: diff };
+}
+
+function countdownHTML(cd) {
+    if (!cd) return '<span style="color:var(--accent)">¡En curso o finalizada!</span>';
+    return `
+        <div class="countdown">
+            <div class="countdown-unit"><div class="num">${cd.days}</div><div class="lbl">días</div></div>
+            <div class="countdown-unit"><div class="num">${String(cd.hours).padStart(2,'0')}</div><div class="lbl">horas</div></div>
+            <div class="countdown-unit"><div class="num">${String(cd.mins).padStart(2,'0')}</div><div class="lbl">min</div></div>
+            <div class="countdown-unit"><div class="num">${String(cd.secs).padStart(2,'0')}</div><div class="lbl">seg</div></div>
+        </div>`;
+}
+
+function driverName(d) {
+    return `${d.givenName} ${d.familyName}`;
+}
+
+function hlClass(driverId, constructorId) {
+    const d = state.highlightDriver && driverId === state.highlightDriver;
+    const t = state.highlightTeam && constructorId === state.highlightTeam;
+    if (d && t) return 'hl-both';
+    if (d) return 'hl-driver';
+    if (t) return 'hl-team';
+    return '';
+}
+
+function podiumHL(driverId, constructorId) {
+    const d = state.highlightDriver && driverId === state.highlightDriver;
+    const t = state.highlightTeam && constructorId === state.highlightTeam;
+    if (d) return 'hl-driver';
+    if (t) return 'hl-team';
+    return '';
+}
+
+async function loadResults(season, round) {
+    const cacheKey = `results-${season}-${round}`;
+    if (state.raceData[cacheKey]) return state.raceData[cacheKey];
+    const key = `/${season}/${round}/results.json`;
+    const data = await fetchAPI(key);
+    const races = data.MRData?.RaceTable?.Races;
+    const results = races?.[0]?.Results || null;
+    if (results) state.raceData[cacheKey] = results;
+    return results;
+}
+
+async function loadQualifying(season, round) {
+    const cacheKey = `qualy-${season}-${round}`;
+    if (state.raceData[cacheKey]) return state.raceData[cacheKey];
+    const key = `/${season}/${round}/qualifying.json`;
+    const data = await fetchAPI(key);
+    const races = data.MRData?.RaceTable?.Races;
+    const qualy = races?.[0]?.QualifyingResults || null;
+    if (qualy) state.raceData[cacheKey] = qualy;
+    return qualy;
+}
+
+function renderResultsTable(results) {
+    if (!results?.length) return '<p class="error-msg">Resultados no disponibles aún.</p>';
+
+    const rows = results.map(r => {
+        const did = r.Driver.driverId;
+        const cid = r.Constructor.constructorId;
+        const time = r.Time?.time || r.status;
+        const grid = r.grid ? ` (P${r.grid} en grilla)` : '';
+        return `<tr class="${hlClass(did, cid)}">
+            <td><span class="pos-badge">${r.position}</span></td>
+            <td><span class="driver-code">${r.Driver.code || ''}</span>${driverName(r.Driver)}</td>
+            <td>${r.Constructor.name}</td>
+            <td>${time}${grid}</td>
+            <td>${r.points}</td>
+        </tr>`;
+    }).join('');
+
+    return `<table>
+        <thead><tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Tiempo / Estado</th><th>Pts</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderQualifyingTable(qualy) {
+    if (!qualy?.length) return '<p class="error-msg">Parrilla de salida no disponible aún.</p>';
+
+    const rows = qualy.map(q => {
+        const did = q.Driver.driverId;
+        const cid = q.Constructor.constructorId;
+        const times = [q.Q1, q.Q2, q.Q3].filter(Boolean).pop() || '—';
+        return `<tr class="${hlClass(did, cid)}">
+            <td><span class="pos-badge">${q.position}</span></td>
+            <td><span class="driver-code">${q.Driver.code || ''}</span>${driverName(q.Driver)}</td>
+            <td>${q.Constructor.name}</td>
+            <td>${times}</td>
+        </tr>`;
+    }).join('');
+
+    return `<p class="race-summary">Parrilla de salida (qualifying realizado)</p>
+    <table>
+        <thead><tr><th>Grilla</th><th>Piloto</th><th>Equipo</th><th>Mejor tiempo</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderPodium(results) {
+    const top3 = results.slice(0, 3);
+    const medals = ['p1', 'p2', 'p3'];
+    const labels = ['1°', '2°', '3°'];
+    return `<div class="podium">${top3.map((r, i) => {
+        const did = r.Driver.driverId;
+        const cid = r.Constructor.constructorId;
+        return `<div class="podium-item ${medals[i]} ${podiumHL(did, cid)}">
+            <div class="podium-pos">${labels[i]}</div>
+            <div class="podium-driver">${r.Driver.code || driverName(r.Driver)}</div>
+            <div class="podium-team">${r.Constructor.name}</div>
+        </div>`;
+    }).join('')}</div>`;
+}
+
+function renderRaceBodySync(race, status) {
+    const season = race.season;
+    const round = race.round;
+
+    if (status === 'completed') {
+        const results = state.raceData[`results-${season}-${round}`];
+        if (!results) return null;
+        return renderPodium(results) + renderResultsTable(results);
+    }
+
+    if (status === 'qualifying_done') {
+        const qualy = state.raceData[`qualy-${season}-${round}`];
+        if (qualy?.length) return renderQualifyingTable(qualy);
+        const cd = formatCountdown(raceDateTime(race));
+        return `<p class="race-summary">Qualifying realizado. Carrera en:</p>
+            <div data-countdown="${toUTCISO(race.date, race.time)}">${countdownHTML(cd)}</div>
+            <p class="error-msg" style="margin-top:0.75rem">Parrilla aún no publicada en la API.</p>`;
+    }
+
+    const cd = formatCountdown(raceDateTime(race));
+    const qualyDt = qualyDateTime(race);
+    let qualyInfo = '';
+    if (qualyDt) {
+        const qCd = formatCountdown(qualyDt);
+        qualyInfo = qCd
+            ? `<p class="inline-countdown">Qualifying: <strong>${formatDate(qualyDt)}</strong> (faltan ${qCd.days}d ${qCd.hours}h ${qCd.mins}m)</p>`
+            : `<p class="inline-countdown">Qualifying: <strong>${formatDate(qualyDt)}</strong></p>`;
+    }
+    return `<p class="race-summary">Carrera programada para <strong>${formatDate(raceDateTime(race))}</strong></p>
+        <div data-countdown="${toUTCISO(race.date, race.time)}">${countdownHTML(cd)}</div>
+        ${qualyInfo}`;
+}
+
+async function fetchRaceBody(race, status) {
+    const season = race.season;
+    const round = race.round;
+
+    if (status === 'completed') {
+        try {
+            const results = await loadResults(season, round);
+            if (!results) return '<p class="error-msg">Resultados pendientes.</p>';
+            return renderPodium(results) + renderResultsTable(results);
+        } catch {
+            return '<p class="error-msg">Error al cargar resultados.</p>';
+        }
+    }
+
+    if (status === 'qualifying_done') {
+        try {
+            const qualy = await loadQualifying(season, round);
+            if (qualy?.length) return renderQualifyingTable(qualy);
+        } catch { /* fall through */ }
+    }
+
+    return renderRaceBodySync(race, status);
+}
+
+async function fillRaceBody(round) {
+    const race = state.races.find(x => x.round === round);
+    if (!race) return;
+    const body = document.getElementById(`body-${round}`);
+    if (!body) return;
+    const status = getRaceStatus(race);
+    const cached = renderRaceBodySync(race, status);
+    if (cached) {
+        body.innerHTML = cached;
+        return;
+    }
+    body.innerHTML = await fetchRaceBody(race, status);
+}
+
+function refreshExpandedBodies() {
+    document.querySelectorAll('.race-card.expanded').forEach(card => {
+        const round = card.dataset.round;
+        const race = state.races.find(x => x.round === round);
+        if (!race) return;
+        const body = document.getElementById(`body-${round}`);
+        if (!body) return;
+        const status = getRaceStatus(race);
+        const html = renderRaceBodySync(race, status);
+        if (html) body.innerHTML = html;
+    });
+}
+
+function statusBadge(status) {
+    const map = {
+        completed: ['Completada', 'status-done'],
+        upcoming: ['Próxima', 'status-upcoming'],
+        qualifying_done: ['Grilla lista', 'status-qualy'],
+    };
+    const [label, cls] = map[status] || ['—', ''];
+    return `<span class="race-status ${cls}">${label}</span>`;
+}
+
+function isExpanded(round, status) {
+    if (state.expandedRounds.has(round)) return true;
+    if ((state.highlightDriver || state.highlightTeam) && (status === 'completed' || status === 'qualifying_done')) return true;
+    return false;
+}
+
+function renderRaceCard(race, isNext) {
+    const status = getRaceStatus(race);
+    const dt = raceDateTime(race);
+    const expanded = isExpanded(race.round, status);
+    const cardId = `race-${race.round}`;
+
+    return `<div class="race-card ${isNext ? 'is-next' : ''} ${status === 'completed' ? 'is-past' : ''} ${expanded ? 'expanded' : ''}"
+        id="${cardId}" data-round="${race.round}" data-status="${status}">
+        <div class="race-header" onclick="toggleRace('${race.round}')">
+            <div class="race-round">R${race.round}</div>
+            <div class="race-info">
+                <div class="race-name">${race.raceName}</div>
+                <div class="race-circuit">${race.Circuit.circuitName} · ${race.Circuit.Location.locality}</div>
+            </div>
+            <div class="race-right">
+                <div class="race-date">${dt.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</div>
+                ${statusBadge(status)}
+            </div>
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="race-body" id="body-${race.round}">
+            ${expanded ? '<div class="loading"><div class="spinner"></div></div>' : ''}
+        </div>
+    </div>`;
+}
+
+async function toggleRace(round) {
+    const card = document.getElementById(`race-${round}`);
+    if (!card) return;
+
+    if (card.classList.contains('expanded') && !state.highlightDriver && !state.highlightTeam) {
+        card.classList.remove('expanded');
+        state.expandedRounds.delete(round);
+        return;
+    }
+
+    if (!state.highlightDriver && !state.highlightTeam) {
+        document.querySelectorAll('.race-card.expanded').forEach(c => {
+            c.classList.remove('expanded');
+            state.expandedRounds.delete(c.dataset.round);
+        });
+    }
+
+    card.classList.add('expanded');
+    state.expandedRounds.add(round);
+
+    const body = document.getElementById(`body-${round}`);
+    if (body && !body.querySelector('table') && !body.querySelector('.countdown')) {
+        body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    }
+    await fillRaceBody(round);
+}
+
+function findNextRace() {
+    const now = Date.now();
+    return state.races.find(r => raceDateTime(r).getTime() > now) || null;
+}
+
+function renderHero(nextRace) {
+    if (!nextRace) return '';
+    const status = getRaceStatus(nextRace);
+    const dt = raceDateTime(nextRace);
+    const cd = formatCountdown(dt);
+
+    let extra = '';
+    if (status === 'qualifying_done') {
+        extra = '<p class="hero-meta" style="margin-top:0.5rem;color:#fbbf24">✓ Qualifying realizado — parrilla disponible</p>';
+    }
+
+    return `<div class="next-race-hero" id="hero-countdown" data-countdown="${toUTCISO(nextRace.date, nextRace.time)}">
+        <div class="hero-label">Próxima carrera</div>
+        <div class="hero-name">${nextRace.raceName}</div>
+        <div class="hero-meta">${nextRace.Circuit.circuitName} · ${formatDate(dt)}</div>
+        ${extra}
+        ${countdownHTML(cd)}
+    </div>`;
+}
+
+function renderStandings() {
+    if (!state.driverStandings.length && !state.constructorStandings.length) return '';
+
+    const roundLabel = state.standingsRound ? ` · después de la R${state.standingsRound}` : '';
+
+    const driverRows = state.driverStandings.map(s => {
+        const did = s.Driver.driverId;
+        const cid = s.Constructors?.[0]?.constructorId;
+        const pos = s.position;
+        return `<tr class="${hlClass(did, cid)} ${pos === '1' ? 'pos-1' : ''}">
+            <td><span class="pos-badge">${pos}</span></td>
+            <td><span class="driver-code">${s.Driver.code || ''}</span>${driverName(s.Driver)}</td>
+            <td>${s.Constructors?.[0]?.name || '—'}</td>
+            <td class="pts-cell">${s.points}</td>
+            <td>${s.wins}</td>
+        </tr>`;
+    }).join('');
+
+    const teamRows = state.constructorStandings.map(s => {
+        const cid = s.Constructor.constructorId;
+        const pos = s.position;
+        return `<tr class="${hlClass(null, cid)} ${pos === '1' ? 'pos-1' : ''}">
+            <td><span class="pos-badge">${pos}</span></td>
+            <td>${s.Constructor.name}</td>
+            <td class="pts-cell">${s.points}</td>
+            <td>${s.wins}</td>
+        </tr>`;
+    }).join('');
+
+    return `<p class="section-title">Campeonato${roundLabel}</p>
+    <div class="standings-grid">
+        <div class="standings-panel">
+            <h3>Pilotos</h3>
+            <table>
+                <thead><tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Pts</th><th>V</th></tr></thead>
+                <tbody>${driverRows}</tbody>
+            </table>
+        </div>
+        <div class="standings-panel">
+            <h3>Constructores</h3>
+            <table>
+                <thead><tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>V</th></tr></thead>
+                <tbody>${teamRows}</tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+async function renderAll() {
+    const content = document.getElementById('content');
+    const nextRace = findNextRace();
+    const nextRound = nextRace?.round;
+
+    const past = state.races.filter(r => getRaceStatus(r) === 'completed');
+    const future = state.races.filter(r => getRaceStatus(r) !== 'completed');
+
+    content.innerHTML = `
+        ${nextRace ? renderHero(nextRace) : ''}
+        ${renderStandings()}
+        ${future.length ? `<p class="section-title">Próximas carreras (${future.length})</p><div class="race-list" id="future-list">
+            ${future.map(r => renderRaceCard(r, r.round === nextRound)).join('')}
+        </div>` : ''}
+        ${past.length ? `<p class="section-title" style="margin-top:1.5rem">Carreras disputadas (${past.length})</p><div class="race-list" id="past-list">
+            ${[...past].reverse().map(r => renderRaceCard(r, false)).join('')}
+        </div>` : ''}
+    `;
+
+    updateHighlightBadge();
+
+    const toLoad = state.races.filter(r => isExpanded(r.round, getRaceStatus(r)));
+    for (const r of toLoad) {
+        await fillRaceBody(r.round);
+    }
+}
+
+function updateHighlightBadge() {
+    const badge = document.getElementById('highlightBadge');
+    const parts = [];
+    if (state.highlightDriver) {
+        const d = state.drivers.find(x => x.driverId === state.highlightDriver);
+        if (d) parts.push(`Piloto: <strong>${driverName(d)}</strong>`);
+    }
+    if (state.highlightTeam) {
+        const c = state.constructors.find(x => x.constructorId === state.highlightTeam);
+        if (c) parts.push(`Equipo: <strong>${c.name}</strong>`);
+    }
+    if (parts.length) {
+        badge.innerHTML = 'Resaltando ' + parts.join(' · ');
+        badge.classList.add('visible');
+    } else {
+        badge.classList.remove('visible');
+    }
+}
+
+function tickCountdowns() {
+    document.querySelectorAll('[data-countdown]').forEach(el => {
+        const target = new Date(el.dataset.countdown);
+        const cd = formatCountdown(target);
+        const inner = el.querySelector('.countdown') || el;
+        if (el.id === 'hero-countdown') {
+            const existing = el.querySelector('.countdown');
+            if (existing) existing.outerHTML = countdownHTML(cd).trim();
+        } else if (inner.classList?.contains('countdown') || el.querySelector('.countdown')) {
+            const c = el.querySelector('.countdown');
+            if (c) c.outerHTML = countdownHTML(cd).trim();
+        }
+    });
+}
+
+function populateFilters() {
+    const driverSel = document.getElementById('driverSelect');
+    const teamSel = document.getElementById('teamSelect');
+
+    state.drivers
+        .sort((a, b) => a.familyName.localeCompare(b.familyName))
+        .forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.driverId;
+            opt.textContent = `${d.code ? d.code + ' — ' : ''}${driverName(d)}`;
+            driverSel.appendChild(opt);
+        });
+
+    state.constructors
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.constructorId;
+            opt.textContent = c.name;
+            teamSel.appendChild(opt);
+        });
+}
+
+async function init() {
+    try {
+        const [calendarData, standingsData, constructorsData, constructorStandingsData] = await Promise.all([
+            fetchAPI('/current.json'),
+            fetchAPI('/current/driverStandings.json'),
+            fetchAPI('/current/constructors.json'),
+            fetchAPI('/current/constructorStandings.json'),
+        ]);
+
+        state.season = calendarData.MRData.RaceTable.season;
+        state.races = calendarData.MRData.RaceTable.Races;
+        state.constructors = constructorsData.MRData.ConstructorTable.Constructors;
+
+        const driverList = standingsData.MRData.StandingsTable.StandingsLists[0];
+        state.driverStandings = driverList?.DriverStandings || [];
+        state.standingsRound = driverList?.round || standingsData.MRData.StandingsTable.round;
+        state.drivers = state.driverStandings.map(s => s.Driver);
+
+        const constructorList = constructorStandingsData.MRData.StandingsTable.StandingsLists[0];
+        state.constructorStandings = constructorList?.ConstructorStandings || [];
+
+        document.getElementById('seasonLabel').textContent =
+            `Temporada ${state.season} · ${state.races.length} Grandes Premios`;
+
+        populateFilters();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        await renderAll();
+
+        const next = findNextRace();
+        if (next) state.expandedRounds.add(next.round);
+        await renderAll();
+
+        setInterval(tickCountdowns, 1000);
+    } catch (err) {
+        document.getElementById('loading').innerHTML =
+            `<p class="error-msg">Error al cargar datos: ${err.message}</p>`;
+    }
+}
+
+async function onHighlightChange() {
+    updateHighlightBadge();
+    refreshExpandedBodies();
+
+    if (state.highlightDriver || state.highlightTeam) {
+        await renderAll();
+        refreshExpandedBodies();
+
+        const firstHl = document.querySelector('tr.hl-driver, tr.hl-team, tr.hl-both, .podium-item.hl-driver, .podium-item.hl-team');
+        if (firstHl) firstHl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        await renderAll();
+    }
+}
+
+document.getElementById('driverSelect').addEventListener('change', e => {
+    state.highlightDriver = e.target.value;
+    onHighlightChange();
+});
+
+document.getElementById('teamSelect').addEventListener('change', e => {
+    state.highlightTeam = e.target.value;
+    onHighlightChange();
+});
+
+document.getElementById('clearBtn').addEventListener('click', async () => {
+    state.highlightDriver = '';
+    state.highlightTeam = '';
+    document.getElementById('driverSelect').value = '';
+    document.getElementById('teamSelect').value = '';
+    await renderAll();
+    updateHighlightBadge();
+});
+
+window.toggleRace = toggleRace;
+init();
+</script>
+
+</body>
+</html>
