@@ -498,6 +498,12 @@
         <p class="season-label" id="seasonLabel">Cargando temporada...</p>
         <div class="filters">
             <div class="filter-group">
+                <label for="seasonSelect">Temporada</label>
+                <select id="seasonSelect">
+                    <option value="">Cargando...</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <label for="driverSelect">Resaltar piloto</label>
                 <select id="driverSelect">
                     <option value="">— Todos —</option>
@@ -529,6 +535,8 @@ const cache = {};
 
 const state = {
     season: null,
+    currentSeason: null,
+    availableSeasons: [],
     races: [],
     drivers: [],
     constructors: [],
@@ -539,6 +547,7 @@ const state = {
     driverStandings: [],
     constructorStandings: [],
     standingsRound: null,
+    loading: false,
 };
 
 async function fetchAPI(path) {
@@ -898,7 +907,10 @@ function renderHero(nextRace) {
 function renderStandings() {
     if (!state.driverStandings.length && !state.constructorStandings.length) return '';
 
-    const roundLabel = state.standingsRound ? ` · después de la R${state.standingsRound}` : '';
+    const seasonComplete = !findNextRace() && state.races.every(r => getRaceStatus(r) === 'completed');
+    const roundLabel = seasonComplete
+        ? ' · clasificación final'
+        : (state.standingsRound ? ` · después de la R${state.standingsRound}` : '');
 
     const driverRows = state.driverStandings.map(s => {
         const did = s.Driver.driverId;
@@ -1004,9 +1016,24 @@ function tickCountdowns() {
     });
 }
 
+function populateSeasonSelect(selected) {
+    const seasonSel = document.getElementById('seasonSelect');
+    seasonSel.innerHTML = '';
+    state.availableSeasons.forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        if (year === selected) opt.selected = true;
+        seasonSel.appendChild(opt);
+    });
+}
+
 function populateFilters() {
     const driverSel = document.getElementById('driverSelect');
     const teamSel = document.getElementById('teamSelect');
+
+    driverSel.innerHTML = '<option value="">— Todos —</option>';
+    teamSel.innerHTML = '<option value="">— Todos —</option>';
 
     state.drivers
         .sort((a, b) => a.familyName.localeCompare(b.familyName))
@@ -1027,16 +1054,34 @@ function populateFilters() {
         });
 }
 
-async function init() {
+async function loadSeason(year) {
+    if (state.loading) return;
+    state.loading = true;
+
+    const seasonSel = document.getElementById('seasonSelect');
+    seasonSel.disabled = true;
+
+    state.expandedRounds.clear();
+    state.highlightDriver = '';
+    state.highlightTeam = '';
+    document.getElementById('driverSelect').value = '';
+    document.getElementById('teamSelect').value = '';
+    document.getElementById('highlightBadge').classList.remove('visible');
+
+    document.getElementById('loading').innerHTML =
+        '<div class="spinner"></div><p>Cargando calendario...</p>';
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('content').style.display = 'none';
+
     try {
         const [calendarData, standingsData, constructorsData, constructorStandingsData] = await Promise.all([
-            fetchAPI('/current.json'),
-            fetchAPI('/current/driverStandings.json'),
-            fetchAPI('/current/constructors.json'),
-            fetchAPI('/current/constructorStandings.json'),
+            fetchAPI(`/${year}.json`),
+            fetchAPI(`/${year}/driverStandings.json`),
+            fetchAPI(`/${year}/constructors.json`),
+            fetchAPI(`/${year}/constructorStandings.json`),
         ]);
 
-        state.season = calendarData.MRData.RaceTable.season;
+        state.season = year;
         state.races = calendarData.MRData.RaceTable.Races;
         state.constructors = constructorsData.MRData.ConstructorTable.Constructors;
 
@@ -1048,9 +1093,12 @@ async function init() {
         const constructorList = constructorStandingsData.MRData.StandingsTable.StandingsLists[0];
         state.constructorStandings = constructorList?.ConstructorStandings || [];
 
-        document.getElementById('seasonLabel').textContent =
-            `Temporada ${state.season} · ${state.races.length} Grandes Premios`;
+        const isCurrent = year === state.currentSeason;
+        document.getElementById('seasonLabel').textContent = isCurrent
+            ? `Temporada ${state.season} · ${state.races.length} Grandes Premios · en curso`
+            : `Temporada ${state.season} · ${state.races.length} Grandes Premios`;
 
+        seasonSel.value = year;
         populateFilters();
 
         document.getElementById('loading').style.display = 'none';
@@ -1059,8 +1107,41 @@ async function init() {
         await renderAll();
 
         const next = findNextRace();
-        if (next) state.expandedRounds.add(next.round);
-        await renderAll();
+        if (next) {
+            state.expandedRounds.add(next.round);
+            await renderAll();
+        }
+
+        localStorage.setItem('f1dash-season', year);
+    } catch (err) {
+        document.getElementById('loading').innerHTML =
+            `<p class="error-msg">Error al cargar temporada ${year}: ${err.message}</p>`;
+    } finally {
+        state.loading = false;
+        seasonSel.disabled = false;
+    }
+}
+
+async function init() {
+    try {
+        const [seasonsData, currentData] = await Promise.all([
+            fetchAPI('/seasons.json?limit=100'),
+            fetchAPI('/current.json'),
+        ]);
+
+        state.availableSeasons = seasonsData.MRData.SeasonTable.Seasons
+            .map(s => s.season)
+            .sort((a, b) => Number(b) - Number(a));
+
+        state.currentSeason = currentData.MRData.RaceTable.season;
+
+        const saved = localStorage.getItem('f1dash-season');
+        const initial = saved && state.availableSeasons.includes(saved)
+            ? saved
+            : state.currentSeason;
+
+        populateSeasonSelect(initial);
+        await loadSeason(initial);
 
         setInterval(tickCountdowns, 1000);
     } catch (err) {
@@ -1083,6 +1164,10 @@ async function onHighlightChange() {
         await renderAll();
     }
 }
+
+document.getElementById('seasonSelect').addEventListener('change', e => {
+    loadSeason(e.target.value);
+});
 
 document.getElementById('driverSelect').addEventListener('change', e => {
     state.highlightDriver = e.target.value;
