@@ -241,6 +241,55 @@
             font-size: 0.9rem;
         }
 
+        .weekend-schedule {
+            margin-top: 1.25rem;
+            position: relative;
+        }
+
+        .weekend-schedule-title {
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .session-list {
+            display: grid;
+            gap: 0.4rem;
+        }
+
+        .session-item {
+            align-items: center;
+            background: color-mix(in srgb, var(--surface2) 88%, transparent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: minmax(0, 1fr) auto;
+            padding: 0.55rem 0.75rem;
+        }
+
+        .session-item.is-race {
+            border-color: var(--accent);
+        }
+
+        .session-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .session-time {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-align: right;
+        }
+
+        .race-body .weekend-schedule {
+            margin-top: 0;
+        }
+
         .countdown {
             display: flex;
             gap: 0.75rem;
@@ -543,6 +592,8 @@
             select { min-width: unset; width: 100%; }
             .btn-clear { align-self: stretch; }
             .theme-toggle { align-self: stretch; }
+            .session-item { gap: 0.5rem; padding: 0.5rem 0.6rem; }
+            .session-time { font-size: 0.75rem; }
         }
     </style>
 </head>
@@ -638,6 +689,42 @@ function raceDateTime(race) {
 function qualyDateTime(race) {
     if (!race.Qualifying) return null;
     return toUTCDate(race.Qualifying.date, race.Qualifying.time);
+}
+
+function weekendSessions(race) {
+    const sessionLabels = [
+        ['FirstPractice', 'Práctica libre 1'],
+        ['SecondPractice', 'Práctica libre 2'],
+        ['ThirdPractice', 'Práctica libre 3'],
+        ['SprintShootout', 'Clasificación sprint'],
+        ['SprintQualifying', 'Clasificación sprint'],
+        ['Sprint', 'Sprint'],
+        ['Qualifying', 'Clasificación'],
+    ];
+
+    const sessions = sessionLabels
+        .filter(([key]) => race[key]?.date)
+        .map(([key, label]) => ({
+            key,
+            label,
+            date: toUTCDate(race[key].date, race[key].time),
+        }));
+
+    sessions.push({ key: 'Race', label: 'Carrera', date: raceDateTime(race) });
+    return sessions.sort((a, b) => a.date - b.date);
+}
+
+function renderWeekendSchedule(race) {
+    const sessions = weekendSessions(race);
+    return `<section class="weekend-schedule" aria-label="Cronograma del fin de semana">
+        <p class="weekend-schedule-title">Cronograma del fin de semana</p>
+        <div class="session-list">
+            ${sessions.map(session => `<div class="session-item ${session.key === 'Race' ? 'is-race' : ''}">
+                <span class="session-name">${session.label}</span>
+                <time class="session-time" datetime="${session.date.toISOString()}">${formatDate(session.date)}</time>
+            </div>`).join('')}
+        </div>
+    </section>`;
 }
 
 function getRaceStatus(race) {
@@ -816,6 +903,7 @@ function renderRaceBodySync(race, status) {
     }
     return `<p class="race-summary">Carrera programada para <strong>${formatDate(raceDateTime(race))}</strong></p>
         <div data-countdown="${toUTCISO(race.date, race.time)}">${countdownHTML(cd)}</div>
+        ${renderWeekendSchedule(race)}
         ${qualyInfo}`;
 }
 
@@ -961,6 +1049,7 @@ function renderHero(nextRace) {
         <div class="hero-meta">${nextRace.Circuit.circuitName} · ${formatDate(dt)}</div>
         ${extra}
         ${countdownHTML(cd)}
+        ${renderWeekendSchedule(nextRace)}
     </div>`;
 }
 
