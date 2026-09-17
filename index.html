@@ -8,6 +8,8 @@
 
     <script>
     (() => {
+        const savedTheme = localStorage.getItem('f1dash-theme');
+        if (savedTheme === 'argentina') document.documentElement.dataset.theme = savedTheme;
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#0a0a0f"/><text y=".88em" x="0.08em" font-size="78">🏎️</text></svg>`;
         const link = document.createElement("link");
         link.rel = "icon";
@@ -30,7 +32,33 @@
             --bronze: #cd7f32;
             --driver-hl: rgba(255, 215, 0, 0.22);
             --team-hl: rgba(0, 210, 190, 0.18);
+            --team-color: #00d2be;
+            --header-bg: #1a0000;
+            --hero-bg: #1a0a0a;
+            --hero-glow: rgba(225, 6, 0, 0.12);
+            --hover-border: #3a3a50;
             --radius: 12px;
+        }
+
+        :root[data-theme="argentina"] {
+            --bg: #071b2d;
+            --surface: #0c2c47;
+            --surface2: #123b5d;
+            --border: #2d6f98;
+            --text: #f7fbff;
+            --muted: #b7d4e7;
+            --accent: #75aadb;
+            --accent-dim: rgba(117, 170, 219, 0.22);
+            --gold: #f6b40e;
+            --silver: #d8e5ec;
+            --bronze: #d89963;
+            --driver-hl: rgba(246, 180, 14, 0.22);
+            --team-hl: rgba(117, 170, 219, 0.25);
+            --team-color: #75aadb;
+            --header-bg: #123f62;
+            --hero-bg: #0e3a5b;
+            --hero-glow: rgba(246, 180, 14, 0.18);
+            --hover-border: #75aadb;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,7 +72,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #1a0000 0%, var(--bg) 60%);
+            background: linear-gradient(135deg, var(--header-bg) 0%, var(--bg) 60%);
             border-bottom: 2px solid var(--accent);
             padding: 1.5rem 1rem 1rem;
             position: sticky;
@@ -120,6 +148,23 @@
 
         .btn-clear:hover { border-color: var(--accent); color: var(--text); }
 
+        .theme-toggle {
+            background: var(--accent);
+            border: 1px solid var(--accent);
+            color: #071b2d;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            align-self: flex-end;
+            transition: filter 0.15s, transform 0.15s;
+        }
+
+        .theme-toggle:hover { filter: brightness(1.1); }
+        .theme-toggle:active { transform: translateY(1px); }
+        .theme-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
         .highlight-badge {
             display: none;
             margin-top: 0.75rem;
@@ -157,7 +202,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .next-race-hero {
-            background: linear-gradient(135deg, var(--surface) 0%, #1a0a0a 100%);
+            background: linear-gradient(135deg, var(--surface) 0%, var(--hero-bg) 100%);
             border: 1px solid var(--accent);
             border-radius: var(--radius);
             padding: 1.5rem;
@@ -173,7 +218,7 @@
             right: -20%;
             width: 300px;
             height: 300px;
-            background: radial-gradient(circle, rgba(225,6,0,0.12) 0%, transparent 70%);
+            background: radial-gradient(circle, var(--hero-glow) 0%, transparent 70%);
             pointer-events: none;
         }
 
@@ -248,7 +293,7 @@
             transition: border-color 0.15s;
         }
 
-        .race-card:hover { border-color: #3a3a50; }
+        .race-card:hover { border-color: var(--hover-border); }
 
         .race-card.is-next { border-color: var(--accent); }
 
@@ -405,7 +450,7 @@
 
         tr.hl-team {
             background: var(--team-hl);
-            box-shadow: inset 3px 0 0 #00d2be;
+            box-shadow: inset 3px 0 0 var(--team-color);
         }
 
         tr.hl-both {
@@ -414,7 +459,7 @@
         }
 
         .podium-item.hl-driver { outline: 2px solid var(--gold); }
-        .podium-item.hl-team { outline: 2px solid #00d2be; }
+        .podium-item.hl-team { outline: 2px solid var(--team-color); }
 
         .pos-badge {
             display: inline-block;
@@ -497,6 +542,7 @@
             .filters { flex-direction: column; align-items: stretch; }
             select { min-width: unset; width: 100%; }
             .btn-clear { align-self: stretch; }
+            .theme-toggle { align-self: stretch; }
         }
     </style>
 </head>
@@ -525,6 +571,9 @@
                     <option value="">— Todos —</option>
                 </select>
             </div>
+            <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+                🇦🇷 Usar tema Argentina
+            </button>
             <button class="btn-clear" id="clearBtn" type="button">Limpiar</button>
         </div>
         <div class="highlight-badge" id="highlightBadge"></div>
@@ -558,6 +607,7 @@ const state = {
     constructorStandings: [],
     standingsRound: null,
     loading: false,
+    theme: document.documentElement.dataset.theme === 'argentina' ? 'argentina' : 'original',
 };
 
 async function fetchAPI(path) {
@@ -1011,6 +1061,18 @@ function updateHighlightBadge() {
     }
 }
 
+function applyTheme(theme) {
+    const isArgentina = theme === 'argentina';
+    state.theme = isArgentina ? 'argentina' : 'original';
+    document.documentElement.dataset.theme = isArgentina ? 'argentina' : '';
+    document.querySelector('meta[name="theme-color"]').content = isArgentina ? '#071b2d' : '#0a0a0f';
+
+    const toggle = document.getElementById('themeToggle');
+    toggle.setAttribute('aria-pressed', String(isArgentina));
+    toggle.textContent = isArgentina ? '🏁 Usar tema original' : '🇦🇷 Usar tema Argentina';
+    localStorage.setItem('f1dash-theme', state.theme);
+}
+
 function tickCountdowns() {
     document.querySelectorAll('[data-countdown]').forEach(el => {
         const target = new Date(el.dataset.countdown);
@@ -1198,7 +1260,12 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
     updateHighlightBadge();
 });
 
+document.getElementById('themeToggle').addEventListener('click', () => {
+    applyTheme(state.theme === 'argentina' ? 'original' : 'argentina');
+});
+
 window.toggleRace = toggleRace;
+applyTheme(state.theme);
 init();
 </script>
 <!-- Google tag (gtag.js) -->
